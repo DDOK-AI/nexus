@@ -11,11 +11,19 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.116.0",
   "uvicorn>=0.35.0",
-  "pydantic-settings>=2.10.0",
   "httpx>=0.28.0",
+  "pytest>=8.4.0",
+]
+
+[project.optional-dependencies]
+deepagents = [
   "deepagents>=0.1.0",
   "langgraph>=0.6.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["apps/api"]
+
+[tool.pytest.ini_options]
+pythonpath = ["apps/api"]
+testpaths = ["apps/api/tests"]

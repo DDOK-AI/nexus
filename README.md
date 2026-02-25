@@ -2,37 +2,36 @@
 
 Google Workspace를 사용하는 1인/소형 법인을 위한 **DeepAgents 기반 업무 자동화 SaaS** 프로젝트입니다.
 
-## 프로젝트 유형
 - 유형: 제품(Product)
 - 경로: `~/Dev/company/gws-deepagent-workspace`
 - 생성일: 2026-02-25
 
-## 핵심 목표
-- Google Calendar/Tasks/Drive/Docs/Sheets/Slides/Meet 통합 에이전트
-- GitHub 연동으로 AI 코딩 작업(Claude Code, Codex, OpenCode) 자동 기록/커밋/리포트화
-- 일일 R&D 보고서 / 주간 보고 자동 생성
-- 향후 바로빌 API 연계로 세금계산서 자동 발행
-- 내부 팀 채팅 + Notion/Confluence/Jira 통합형 프로젝트/문서 베이스
-- 위 지식베이스에 DeepAgents가 직접 접근해 자연어 지시 실행
+## MVP 구현 범위 (v0.1)
+- Google OAuth 연결 흐름(연결 URL/콜백/연결 상태)
+- Workspace 액션 실행 API (Calendar/Tasks/Drive/Docs/Sheets/Slides/Meet)
+- GitHub Webhook 수집 + 이벤트 저널 저장
+- 일일/주간 R&D 보고서 자동 생성 및 문서베이스 저장
+- 프로젝트 문서베이스 CRUD + 검색
+- 내부 팀 채팅(채널/메시지)
+- 바로빌 연계 준비용 세금계산서 Draft/Issue 워크플로
+- DeepAgent Orchestrator 자연어 실행 엔드포인트
 
-## 초기 구조
+## 디렉터리
 ```
 apps/
   api/
     app/
       api/routes/
       core/
+      db/
+      schemas/
       services/
     tests/
+    data/
 docs/
 ```
 
-## 문서
-- `docs/PRD.md` : 제품 요구사항
-- `docs/ARCHITECTURE.md` : 시스템 아키텍처
-- `docs/ROADMAP.md` : 단계별 구현 계획
-
-## 로컬 실행(스캐폴드)
+## 실행
 ```bash
 cd ~/Dev/company/gws-deepagent-workspace
 python3 -m venv .venv
@@ -41,9 +40,24 @@ pip install -e .
 uvicorn app.main:app --app-dir apps/api --reload --port 8090
 ```
 
-## 다음 우선 작업
-1. Google OAuth 및 Workspace API 인증 레이어 구축
-2. DeepAgents 런타임 + 툴 권한 정책(HITL) 연결
-3. GitHub App 설치형 연동(커밋/PR/이슈/릴리즈 로그)
-4. 보고서 생성 파이프라인(일/주간)
-5. 협업 허브(채팅 + 문서/업무) MVP
+> DeepAgents SDK까지 설치하려면
+```bash
+pip install -e '.[deepagents]'
+```
+
+## 주요 API
+- `GET /health`
+- `GET /oauth/google/connect`
+- `POST /oauth/google/callback`
+- `POST /workspace/execute`
+- `POST /github/webhook`
+- `POST /reports/daily`, `POST /reports/weekly`
+- `POST /docs`, `GET /docs/search/query`
+- `POST /chat/channels`, `POST /chat/channels/{id}/messages`
+- `POST /billing/invoices`, `POST /billing/invoices/{id}/issue`
+- `POST /agent/execute`
+
+## 문서
+- `docs/PRD.md`
+- `docs/ARCHITECTURE.md`
+- `docs/ROADMAP.md`
