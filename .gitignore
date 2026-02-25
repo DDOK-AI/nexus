@@ -1,0 +1,7 @@
+.DS_Store
+*.tmp
+__pycache__/
+.ipynb_checkpoints/
+.venv/
+.env
+.pytest_cache/
