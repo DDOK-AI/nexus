@@ -56,3 +56,15 @@
 ### Validation
 - 내부 헬스체크: `http://127.0.0.1:18090/health` → `{\"ok\":true}`
 - 외부 도메인 헬스체크: `https://nexus.ddok.ai/health` → `200`, `{\"ok\":true}`
+
+## 2026-02-26 — Google OAuth 우선 실연동 전환
+
+### Changed
+- 250 서버 `.env`에 Google OAuth 실값 반영
+- Google Redirect URI를 `https://nexus.ddok.ai/oauth/google/callback`으로 고정
+- `ALLOW_MOCK_AUTH=false`로 전환하여 mock fallback 비활성화
+
+### Validation
+- `POST /oauth/google/connect` 응답 auth_url에서 실제 `client_id`/redirect 확인
+- `GET /oauth/google/callback?code=bogus&state=...` 호출 시 Google 토큰 엔드포인트 실호출 후 `invalid_grant`(400) 확인
+- 도메인 경유(`https://nexus.ddok.ai`)에서도 동일 connect 경로 정상 확인

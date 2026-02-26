@@ -65,3 +65,18 @@
   - 250 로컬: `curl http://127.0.0.1:18090/health` → `{"ok":true}`
   - Traefik 노드(253)에서 백엔드 연결: `curl http://192.168.50.250:18090/health` → `{"ok":true}`
   - 외부 도메인: `curl https://nexus.ddok.ai/health` → HTTP `200` + `{"ok":true}`
+
+## 2026-02-26 Server (192.168.50.250) — Google OAuth 우선 실연동 검증
+- 설정 반영:
+  - source: `/Volumes/BAEM1N/260222/startup-google-base/.env`의 Google client 값
+  - target: `~/deployments/gws-deepagent-workspace/.env`
+  - `GOOGLE_REDIRECT_URI=https://nexus.ddok.ai/oauth/google/callback`
+  - `ALLOW_MOCK_AUTH=false`
+- 서비스 상태:
+  - `systemctl --user restart gws-deepagent-workspace.service` 후 `active`
+- API 검증:
+  - `GOOGLE_CONNECT_CHECK {"client_id_set": true, "redirect_uri_ok": true, "scope_has_calendar": true}`
+  - `GOOGLE_CALLBACK_BAD_STATUS 400`
+  - `GOOGLE_CALLBACK_BAD_TEXT ... \"error\": \"invalid_grant\" ...`
+  - `SERVER250_GOOGLE_REAL_PATH_TEST_DONE`
+  - `NEXUS_GOOGLE_CONNECT_OK` (도메인 경유 connect 확인)
