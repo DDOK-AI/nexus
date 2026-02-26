@@ -18,3 +18,4 @@
 ### Notes
 - `ALLOW_MOCK_AUTH=true` 시 Google OAuth mock fallback 동작
 - GitHub repo 실조회는 `GITHUB_APP_TOKEN` 설정 시 활성화
+- 192.168.50.250 서버에서 P0 스모크 검증 완료 (`SERVER250_P0_SMOKE_OK`)
