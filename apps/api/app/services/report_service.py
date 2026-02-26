@@ -10,10 +10,18 @@ from app.services.github_service import github_service
 
 
 class ReportService:
-    def generate_report(self, *, report_type: str, period_start: date, period_end: date) -> dict:
+    def generate_report(
+        self,
+        *,
+        workspace_id: int,
+        actor_email: str,
+        report_type: str,
+        period_start: date,
+        period_end: date,
+    ) -> dict:
         start = datetime.combine(period_start, time.min).replace(tzinfo=timezone.utc)
         end = datetime.combine(period_end, time.max).replace(tzinfo=timezone.utc)
-        events = github_service.events_between(start, end)
+        events = github_service.events_between(workspace_id, start, end)
 
         counter = Counter([event["event_type"] for event in events])
         repo_counter = Counter([event["repo"] for event in events if event["repo"]])
@@ -52,16 +60,18 @@ class ReportService:
 
         db.execute(
             """
-            INSERT INTO reports(report_type, period_start, period_end, title, content, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO reports(workspace_id, report_type, period_start, period_end, title, content, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (report_type, period_start.isoformat(), period_end.isoformat(), title, content, now),
+            (workspace_id, report_type, period_start.isoformat(), period_end.isoformat(), title, content, actor_email, now),
         )
 
         report = db.fetchone("SELECT * FROM reports ORDER BY id DESC LIMIT 1")
         assert report is not None
 
         docs_service.create(
+            workspace_id=workspace_id,
+            created_by=actor_email,
             space="reports",
             title=title,
             content=content,
@@ -70,14 +80,17 @@ class ReportService:
 
         return report
 
-    def list_reports(self, *, report_type: Optional[str] = None, limit: int = 100) -> list[dict]:
+    def list_reports(self, *, workspace_id: int, report_type: Optional[str] = None, limit: int = 100) -> list[dict]:
         if report_type:
             rows = db.fetchall(
-                "SELECT * FROM reports WHERE report_type=? ORDER BY id DESC LIMIT ?",
-                (report_type, limit),
+                "SELECT * FROM reports WHERE workspace_id=? AND report_type=? ORDER BY id DESC LIMIT ?",
+                (workspace_id, report_type, limit),
             )
         else:
-            rows = db.fetchall("SELECT * FROM reports ORDER BY id DESC LIMIT ?", (limit,))
+            rows = db.fetchall(
+                "SELECT * FROM reports WHERE workspace_id=? ORDER BY id DESC LIMIT ?",
+                (workspace_id, limit),
+            )
         return rows
 
 

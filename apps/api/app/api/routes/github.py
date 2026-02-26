@@ -5,9 +5,63 @@ from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from app.schemas.github import GithubInstallCallbackRequest, GithubInstallUrlRequest, GithubRepoLinkRequest
+from app.services.github_integration_service import github_integration_service
 from app.services.github_service import github_service
+from app.services.workspace_service import workspace_service
 
 router = APIRouter(prefix="/github", tags=["github"])
+
+
+@router.post("/app/install-url")
+def app_install_url(payload: GithubInstallUrlRequest) -> dict:
+    try:
+        return github_integration_service.install_url(workspace_id=payload.workspace_id, actor_email=payload.actor_email)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/app/callback")
+def app_callback(payload: GithubInstallCallbackRequest) -> dict:
+    try:
+        return github_integration_service.callback(
+            state=payload.state,
+            installation_id=payload.installation_id,
+            account_login=payload.account_login,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/app/installations")
+def list_installations(workspace_id: int, actor_email: str) -> dict:
+    try:
+        data = github_integration_service.list_installations(workspace_id=workspace_id, actor_email=actor_email)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return {"installations": data}
+
+
+@router.post("/repos/link")
+def link_repo(payload: GithubRepoLinkRequest) -> dict:
+    try:
+        return github_integration_service.link_repo(
+            workspace_id=payload.workspace_id,
+            actor_email=payload.actor_email,
+            installation_id=payload.installation_id,
+            repo_full_name=payload.repo_full_name,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/repos")
+def list_linked_repos(workspace_id: int, actor_email: str) -> dict:
+    try:
+        repos = github_integration_service.list_linked_repos(workspace_id=workspace_id, actor_email=actor_email)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return {"repos": repos}
 
 
 @router.post("/webhook")
@@ -26,5 +80,14 @@ async def webhook(
 
 
 @router.get("/events")
-def list_events(limit: int = 100) -> dict:
-    return {"events": github_service.list_events(limit=limit)}
+def list_events(workspace_id: int, actor_email: str, limit: int = 100) -> dict:
+    try:
+        workspace_service.require_permission(
+            workspace_id=workspace_id,
+            actor_email=actor_email,
+            permission="workspace.read",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    return {"events": github_service.list_events(workspace_id=workspace_id, limit=limit)}

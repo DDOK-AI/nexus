@@ -4,6 +4,8 @@ from pydantic import BaseModel
 
 
 class ChannelCreateRequest(BaseModel):
+    workspace_id: int
+    actor_email: str
     name: str
     description: str = ""
 
@@ -16,6 +18,7 @@ class ChannelResponse(BaseModel):
 
 
 class MessageCreateRequest(BaseModel):
+    workspace_id: int
     sender: str
     content: str
 

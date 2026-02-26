@@ -7,10 +7,14 @@ class GoogleConnectResponse(BaseModel):
     state: str
 
 
+class GoogleConnectRequest(BaseModel):
+    workspace_id: int
+    user_email: str
+
+
 class GoogleCallbackRequest(BaseModel):
     code: str
     state: str
-    user_email: str
 
 
 class OAuthAccount(BaseModel):
@@ -18,3 +22,5 @@ class OAuthAccount(BaseModel):
     user_email: str
     scope: str
     connected: bool
+    token_type: str = "Bearer"
+    expires_at: str = ""

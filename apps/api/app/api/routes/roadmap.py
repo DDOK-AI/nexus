@@ -14,13 +14,17 @@ def platform_status() -> dict:
 def modules() -> dict:
     return {
         "modules": [
-            "oauth-google",
+            "workspace-rbac",
+            "oauth-google-real-ready",
             "workspace-connectors",
+            "github-app-install-link",
             "github-webhook-journal",
             "reporting-engine",
             "docs-base",
             "team-chat",
             "billing-barobill-adapter",
-            "deepagent-orchestrator",
+            "hitl-approvals",
+            "agent-execution-logs",
+            "deepagent-orchestrator-streaming",
         ]
     }

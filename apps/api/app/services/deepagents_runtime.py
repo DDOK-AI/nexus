@@ -1,13 +1,14 @@
-"""DeepAgents 오케스트레이터 기반 MVP 런타임.
+"""DeepAgents 오케스트레이터 기반 P0 런타임.
 
-실제 deepagents SDK/툴콜은 v0.2에서 연결하고,
-현재는 동일한 입출력 계약으로 orchestrator 동작을 제공한다.
+v0.1: 규칙 기반 오케스트레이션 + 실행로그 + 스트리밍 계약
+v0.2: deepagents SDK 실제 연결 예정
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Iterator
 
 from app.services.billing_service import billing_service
 from app.services.docs_service import docs_service
@@ -24,6 +25,9 @@ class AgentCapabilityProfile:
     billing_future: bool = True
     collab_hub: bool = True
     docs_base: bool = True
+    hitl: bool = True
+    execution_logs: bool = True
+    streaming: bool = True
 
 
 def build_capability_profile() -> AgentCapabilityProfile:
@@ -34,14 +38,20 @@ def runtime_status() -> dict:
     profile = build_capability_profile()
     return {
         "status": "active",
-        "runtime": "deepagents-orchestrator-mvp",
+        "runtime": "deepagents-orchestrator-p0",
         "capabilities": profile.__dict__,
-        "note": "v0.1은 Orchestrator 계약 우선 구현, v0.2에서 deepagents SDK 직접 연결",
+        "note": "v0.2에서 deepagents SDK 직접 연결",
     }
 
 
 class DeepAgentOrchestrator:
-    def execute(self, *, user_email: str, instruction: str, context: dict) -> dict:
+    def execute(self, *, workspace_id: int, actor_email: str, user_email: str, instruction: str, context: dict) -> dict:
+        workspace_service.require_permission(
+            workspace_id=workspace_id,
+            actor_email=actor_email,
+            permission="agent.execute",
+        )
+
         text = instruction.strip()
         lowered = text.lower()
 
@@ -51,24 +61,38 @@ class DeepAgentOrchestrator:
         if "주간" in text and ("보고" in text or "report" in lowered):
             end = date.today()
             start = end - timedelta(days=6)
-            report = report_service.generate_report(report_type="weekly", period_start=start, period_end=end)
+            report = report_service.generate_report(
+                workspace_id=workspace_id,
+                actor_email=actor_email,
+                report_type="weekly",
+                period_start=start,
+                period_end=end,
+            )
             steps.append({"module": "reporting", "action": "weekly_report", "ok": True})
             outputs["weekly_report"] = report
 
         if ("일일" in text or "daily" in lowered) and ("보고" in text or "report" in lowered):
             today = date.today()
-            report = report_service.generate_report(report_type="daily", period_start=today, period_end=today)
+            report = report_service.generate_report(
+                workspace_id=workspace_id,
+                actor_email=actor_email,
+                report_type="daily",
+                period_start=today,
+                period_end=today,
+            )
             steps.append({"module": "reporting", "action": "daily_report", "ok": True})
             outputs["daily_report"] = report
 
         if "커밋" in text or "github" in lowered or "깃헙" in text:
-            events = github_service.list_events(limit=20)
+            events = github_service.list_events(workspace_id=workspace_id, limit=20)
             steps.append({"module": "github", "action": "list_events", "ok": True, "count": len(events)})
             outputs["github_events"] = events
 
         if "일정" in text or "calendar" in lowered:
             calendar_payload = context.get("calendar", {"title": "AI 자동 생성 일정"})
             result = workspace_service.execute(
+                workspace_id=workspace_id,
+                actor_email=actor_email,
                 user_email=user_email,
                 service="calendar",
                 action="create",
@@ -79,6 +103,8 @@ class DeepAgentOrchestrator:
 
         if "문서" in text or "docs" in lowered:
             new_doc = docs_service.create(
+                workspace_id=workspace_id,
+                created_by=actor_email,
                 space=context.get("space", "knowledge"),
                 title=context.get("title", "에이전트 실행 메모"),
                 content=f"지시문: {instruction}\n\n컨텍스트: {context}",
@@ -91,6 +117,8 @@ class DeepAgentOrchestrator:
             invoice_ctx = context.get("invoice", {})
             if invoice_ctx.get("customer") and invoice_ctx.get("supply_amount"):
                 invoice = billing_service.create_invoice(
+                    workspace_id=workspace_id,
+                    created_by=actor_email,
                     customer=invoice_ctx["customer"],
                     business_no=invoice_ctx.get("business_no", ""),
                     supply_amount=float(invoice_ctx["supply_amount"]),
@@ -115,6 +143,19 @@ class DeepAgentOrchestrator:
 
         summary = f"{len(steps)}개 단계 실행(또는 계획) 완료"
         return {"summary": summary, "steps": steps, "outputs": outputs}
+
+    def stream(self, *, workspace_id: int, actor_email: str, user_email: str, instruction: str, context: dict) -> Iterator[dict]:
+        yield {"event": "start", "data": {"workspace_id": workspace_id, "actor_email": actor_email}}
+        result = self.execute(
+            workspace_id=workspace_id,
+            actor_email=actor_email,
+            user_email=user_email,
+            instruction=instruction,
+            context=context,
+        )
+        for step in result["steps"]:
+            yield {"event": "step", "data": step}
+        yield {"event": "final", "data": result}
 
 
 orchestrator = DeepAgentOrchestrator()

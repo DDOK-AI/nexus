@@ -4,6 +4,8 @@ from pydantic import BaseModel
 
 
 class ReportGenerateRequest(BaseModel):
+    workspace_id: int
+    actor_email: str
     period_start: date
     period_end: date
 

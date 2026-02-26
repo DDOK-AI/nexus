@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 
 class DocCreateRequest(BaseModel):
+    workspace_id: int
+    actor_email: str
     space: str = "general"
     title: str
     content: str
@@ -12,6 +14,8 @@ class DocCreateRequest(BaseModel):
 
 
 class DocUpdateRequest(BaseModel):
+    workspace_id: int
+    actor_email: str
     title: Optional[str] = None
     content: Optional[str] = None
     tags: Optional[list[str]] = None
@@ -19,6 +23,7 @@ class DocUpdateRequest(BaseModel):
 
 class DocResponse(BaseModel):
     id: int
+    workspace_id: int
     space: str
     title: str
     content: str

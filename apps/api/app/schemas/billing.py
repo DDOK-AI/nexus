@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 
 
 class InvoiceCreateRequest(BaseModel):
+    workspace_id: int
+    actor_email: str
     customer: str
     business_no: str = ""
     supply_amount: float = Field(gt=0)
@@ -12,7 +14,10 @@ class InvoiceCreateRequest(BaseModel):
 
 
 class InvoiceIssueRequest(BaseModel):
+    workspace_id: int
+    actor_email: str
     approver: str
+    approval_request_id: int = 0
 
 
 class InvoiceResponse(BaseModel):

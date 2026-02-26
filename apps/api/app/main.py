@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routes.agent import router as agent_router
+from app.api.routes.approvals import router as approvals_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.billing import router as billing_router
 from app.api.routes.chat import router as chat_router
@@ -16,13 +17,14 @@ app = FastAPI(title=settings.app_name)
 
 app.include_router(health_router)
 app.include_router(roadmap_router)
-app.include_router(auth_router)
 app.include_router(workspace_router)
+app.include_router(auth_router)
 app.include_router(github_router)
 app.include_router(reports_router)
 app.include_router(docs_router)
 app.include_router(chat_router)
 app.include_router(billing_router)
+app.include_router(approvals_router)
 app.include_router(agent_router)
 
 
@@ -30,6 +32,6 @@ app.include_router(agent_router)
 def root() -> dict:
     return {
         "service": settings.app_name,
-        "message": "GWS DeepAgent Workspace API",
+        "message": "GWS DeepAgent Workspace API (P0)",
         "docs": "/docs",
     }
