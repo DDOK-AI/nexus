@@ -46,3 +46,4 @@ python3 scripts/check_real_integration_env.py
 - `docs/CHANGELOG.md`
 - `docs/VALIDATION_LOG.md`
 - `docs/E2E_REAL_OAUTH_GITHUB_CHECKLIST.md`
+- `docs/WORK_SUMMARY.md`
