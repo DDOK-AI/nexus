@@ -29,3 +29,7 @@
 ## 6) 현재 상태
 - Google 실연동 경로: 준비 완료
 - GitHub App: 조직 단위 앱 생성 후 시크릿 반영 단계 대기
+
+## 7) 저장소/운영 동기화
+- GitHub 조직 저장소: `https://github.com/DDOK-AI/nexus`
+- 250 서버 운영 코드 기준 경로: `~/repos/nexus`

@@ -5,6 +5,7 @@ Google Workspace 기반 1인/소형 법인을 위한 **DeepAgent SaaS 백엔드*
 ## 현재 상태
 - P0 구현 완료 (RBAC/OAuth/HITL/GitHub App 연결/API 스트리밍/실행로그)
 - 경로: `~/Dev/company/gws-deepagent-workspace`
+- GitHub 원격 저장소: `https://github.com/DDOK-AI/nexus`
 
 ## 핵심 기능
 - **Workspace + RBAC**: owner/admin/member/viewer
@@ -28,6 +29,10 @@ uvicorn app.main:app --app-dir apps/api --reload --port 8090
 cp .env.production.template .env
 python3 scripts/check_real_integration_env.py
 ```
+
+## 250 서버 운영 기준 경로
+- 코드 기준: `~/repos/nexus` (origin: `https://github.com/DDOK-AI/nexus.git`)
+- 서비스: `systemctl --user status gws-deepagent-workspace.service`
 
 ## 주요 API
 - Workspace/RBAC: `/workspaces`, `/workspaces/{id}/members`, `/workspaces/{id}/permissions/me`

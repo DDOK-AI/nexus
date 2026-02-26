@@ -80,3 +80,17 @@
   - `GOOGLE_CALLBACK_BAD_TEXT ... \"error\": \"invalid_grant\" ...`
   - `SERVER250_GOOGLE_REAL_PATH_TEST_DONE`
   - `NEXUS_GOOGLE_CONNECT_OK` (도메인 경유 connect 확인)
+
+## 2026-02-26 GitHub 저장소 생성 + 250 서버 기준 경로 전환
+- GitHub:
+  - org repo 생성: `https://github.com/DDOK-AI/nexus`
+  - local branch `master` → origin push 완료
+- 250 서버:
+  - `git clone https://github.com/DDOK-AI/nexus.git ~/repos/nexus`
+  - 기존 운영 `.env`를 `~/repos/nexus/.env`로 이관
+  - systemd 서비스 WorkingDirectory/ExecStart를 `~/repos/nexus` 기준으로 변경
+  - 서비스 재시작 후 `active` 확인
+- 검증:
+  - `~/repos/nexus` HEAD: `a194077`
+  - `curl http://127.0.0.1:18090/health` → `{"ok":true}`
+  - `curl https://nexus.ddok.ai/health` → HTTP `200` + `{"ok":true}`

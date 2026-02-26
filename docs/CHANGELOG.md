@@ -68,3 +68,18 @@
 - `POST /oauth/google/connect` 응답 auth_url에서 실제 `client_id`/redirect 확인
 - `GET /oauth/google/callback?code=bogus&state=...` 호출 시 Google 토큰 엔드포인트 실호출 후 `invalid_grant`(400) 확인
 - 도메인 경유(`https://nexus.ddok.ai`)에서도 동일 connect 경로 정상 확인
+
+## 2026-02-26 — GitHub 저장소/운영 기준 경로 정리
+
+### Added
+- GitHub org 저장소 생성: `DDOK-AI/nexus`
+- README에 원격 저장소 URL 및 250 서버 운영 기준 경로(`~/repos/nexus`) 명시
+
+### Changed
+- 250 서버 systemd 서비스의 WorkingDirectory를 `~/repos/nexus`로 전환
+- 250 서버에서 origin 기준 코드 참조 체계로 정렬
+
+### Validation
+- 250 서버 `~/repos/nexus` clone 및 HEAD 확인
+- `gws-deepagent-workspace.service` active 확인
+- `https://nexus.ddok.ai/health` 200 확인
