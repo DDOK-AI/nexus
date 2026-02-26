@@ -23,6 +23,12 @@ pip install -e .
 uvicorn app.main:app --app-dir apps/api --reload --port 8090
 ```
 
+## 운영 환경 준비
+```bash
+cp .env.production.template .env
+python3 scripts/check_real_integration_env.py
+```
+
 ## 주요 API
 - Workspace/RBAC: `/workspaces`, `/workspaces/{id}/members`, `/workspaces/{id}/permissions/me`
 - OAuth: `/oauth/google/connect`, `/oauth/google/callback`, `/oauth/google/account/{email}`
@@ -39,3 +45,4 @@ uvicorn app.main:app --app-dir apps/api --reload --port 8090
 - `docs/API_EXAMPLES.md`
 - `docs/CHANGELOG.md`
 - `docs/VALIDATION_LOG.md`
+- `docs/E2E_REAL_OAUTH_GITHUB_CHECKLIST.md`

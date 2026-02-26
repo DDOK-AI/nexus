@@ -36,3 +36,13 @@
 ### Validation
 - 192.168.50.250에서 회귀 API 테스트 성공 (`SERVER250_API_FULL_TEST_OK`, 51 calls)
 - 192.168.50.250에서 OAuth/GitHub 실연동 경로 테스트 성공 (`SERVER250_REAL_OAUTH_GITHUB_PATH_TEST_OK`)
+
+## 2026-02-26 — 운영 템플릿/체크리스트 추가
+
+### Added
+- 운영용 환경변수 템플릿 `.env.production.template`
+- 실연동 필수 환경변수 점검 스크립트 `scripts/check_real_integration_env.py`
+- 250 서버 기준 실 OAuth/GitHub E2E 문서 `docs/E2E_REAL_OAUTH_GITHUB_CHECKLIST.md`
+
+### Changed
+- README에 운영 준비 절차(`cp .env.production.template .env` + env 점검) 반영

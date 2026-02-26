@@ -38,3 +38,18 @@
   - `/oauth/google/connect`에서 실제 client_id 반영 확인
   - `/oauth/google/callback` 호출 시 Google 토큰 엔드포인트 실호출(잘못된 code로 400 확인)
   - GitHub App installation token 경로(`/github/app/installations/{id}/repos`) 실호출 루트 확인(가짜 app id로 400 확인)
+
+## 2026-02-26 Server (192.168.50.250) — 운영 템플릿/체크리스트 검증
+- 반영 파일:
+  - `.env.production.template`
+  - `scripts/check_real_integration_env.py`
+  - `docs/E2E_REAL_OAUTH_GITHUB_CHECKLIST.md`
+  - `README.md`, `docs/CHANGELOG.md`
+- 검증 명령:
+  - `python3 -m py_compile scripts/check_real_integration_env.py`
+  - (실패 경로) env 미주입 상태로 `python3 scripts/check_real_integration_env.py`
+  - (성공 경로) 필수 env 주입 + `ALLOW_MOCK_AUTH=false`로 동일 스크립트 실행
+- 결과:
+  - `SERVER250_ENV_CHECK_FAIL_PATH_OK`
+  - `SERVER250_ENV_CHECK_PASS_PATH_OK`
+  - `SERVER250_TEMPLATE_SYNC_OK`
