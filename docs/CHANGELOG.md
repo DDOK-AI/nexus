@@ -19,3 +19,20 @@
 - `ALLOW_MOCK_AUTH=true` 시 Google OAuth mock fallback 동작
 - GitHub repo 실조회는 `GITHUB_APP_TOKEN` 설정 시 활성화
 - 192.168.50.250 서버에서 P0 스모크 검증 완료 (`SERVER250_P0_SMOKE_OK`)
+
+## 2026-02-26 — OAuth/GitHub 실연동 강화
+
+### Added
+- Google OAuth redirect GET callback (`GET /oauth/google/callback`)
+- Google OAuth 계정 disconnect API (`DELETE /oauth/google/account/{user_email}`)
+- GitHub App redirect GET callback (`GET /github/app/callback`)
+- GitHub 설치별 repo 조회 API (`GET /github/app/installations/{installation_id}/repos`)
+
+### Changed
+- Google OAuth callback 시 userinfo(email) 검증 추가
+- Workspace execute에서 mock 토큰이 아니면 Google Calendar/Drive 실 API 호출
+- GitHub 연동에서 `GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY`를 통한 installation token 발급 지원
+
+### Validation
+- 192.168.50.250에서 회귀 API 테스트 성공 (`SERVER250_API_FULL_TEST_OK`, 51 calls)
+- 192.168.50.250에서 OAuth/GitHub 실연동 경로 테스트 성공 (`SERVER250_REAL_OAUTH_GITHUB_PATH_TEST_OK`)

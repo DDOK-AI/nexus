@@ -80,8 +80,25 @@ class OAuthService:
             "scope": data.get("scope", ""),
             "token_type": data.get("token_type", "Bearer"),
             "expires_at": expires_at.isoformat(),
+            "id_token": data.get("id_token", ""),
             "mock": False,
         }
+
+    def _fetch_google_email(self, access_token: str, token_type: str = "Bearer") -> Optional[str]:
+        if access_token.startswith("mock_"):
+            return None
+        with httpx.Client(timeout=15.0) as client:
+            response = client.get(
+                settings.google_userinfo_url,
+                headers={"Authorization": f"{token_type} {access_token}", "Accept": "application/json"},
+            )
+
+        if response.status_code >= 400:
+            raise ValueError(f"Google userinfo 조회 실패: {response.status_code} {response.text}")
+
+        data = response.json()
+        email = data.get("email")
+        return str(email) if email else None
 
     def callback(self, *, code: str, state: str) -> dict:
         payload = verify_state(state)
@@ -94,6 +111,16 @@ class OAuthService:
         user_email = str(payload["user_email"])
 
         token_data = self._exchange_code(code)
+
+        google_email = self._fetch_google_email(
+            token_data.get("access_token", ""),
+            token_data.get("token_type", "Bearer"),
+        )
+        if google_email and google_email.lower() != user_email.lower():
+            raise ValueError(
+                f"Google 계정 이메일({google_email})과 요청 사용자({user_email})가 일치하지 않습니다."
+            )
+
         now = db.now_iso()
 
         db.execute(
@@ -131,6 +158,19 @@ class OAuthService:
             "expires_at": token_data.get("expires_at"),
             "mock": token_data.get("mock", False),
         }
+
+    def disconnect(self, user_email: str) -> bool:
+        existing = db.fetchone(
+            "SELECT provider, user_email FROM oauth_accounts WHERE provider=? AND user_email=?",
+            (self.provider, user_email),
+        )
+        if not existing:
+            return False
+        db.execute(
+            "DELETE FROM oauth_accounts WHERE provider=? AND user_email=?",
+            (self.provider, user_email),
+        )
+        return True
 
     def _refresh_token(self, row: dict) -> dict:
         refresh_token = row.get("refresh_token") or ""

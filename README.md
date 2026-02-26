@@ -8,9 +8,9 @@ Google Workspace 기반 1인/소형 법인을 위한 **DeepAgent SaaS 백엔드*
 
 ## 핵심 기능
 - **Workspace + RBAC**: owner/admin/member/viewer
-- **Google OAuth**: 실제 토큰 교환/갱신 준비 + mock fallback
+- **Google OAuth**: 실제 토큰 교환/갱신 + callback redirect(GET/POST) + disconnect
 - **HITL 승인**: Agent 실행, Invoice 발행 승인 게이트
-- **GitHub App**: 설치 URL, callback, repo link, webhook 저널
+- **GitHub App**: 설치 URL, callback(GET/POST), 설치 리포 조회, repo link, webhook 저널
 - **Agent 실행**: 일반 실행 + SSE 스트리밍 + 실행 로그
 - **Docs/Chat/Reports/Billing**: workspace 단위 데이터
 
@@ -26,9 +26,10 @@ uvicorn app.main:app --app-dir apps/api --reload --port 8090
 ## 주요 API
 - Workspace/RBAC: `/workspaces`, `/workspaces/{id}/members`, `/workspaces/{id}/permissions/me`
 - OAuth: `/oauth/google/connect`, `/oauth/google/callback`, `/oauth/google/account/{email}`
+- OAuth: `/oauth/google/callback` (GET redirect 지원), `/oauth/google/account/{email}` (DELETE disconnect)
 - Approvals: `/approvals/inbox`, `/approvals/requests/{id}/approve|reject`
 - Agent: `/agent/execute`, `/agent/execute/stream`, `/agent/logs`
-- GitHub: `/github/app/install-url`, `/github/app/callback`, `/github/repos/link`, `/github/webhook`
+- GitHub: `/github/app/install-url`, `/github/app/callback`, `/github/app/installations/{id}/repos`, `/github/repos/link`, `/github/webhook`
 - Billing: `/billing/invoices`, `/billing/invoices/{id}/issue`
 
 ## 문서

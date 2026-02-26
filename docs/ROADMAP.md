@@ -11,8 +11,8 @@
 - Agent SSE 스트리밍 + 실행 로그
 
 ## Phase 2 — P1 (다음)
-- Google Calendar/Drive/Tasks 실 API 실행
-- GitHub installation token 기반 이슈/PR 동기화
+- Google Calendar/Drive 실 API 실행 (진행중)
+- GitHub installation token 기반 리포 조회 (진행중), 이슈/PR 동기화
 - Approvals 감사 로그 대시보드
 
 ## Phase 3 — P2

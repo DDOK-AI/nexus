@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 
 from app.schemas.github import GithubInstallCallbackRequest, GithubInstallUrlRequest, GithubRepoLinkRequest
 from app.services.github_integration_service import github_integration_service
@@ -33,6 +33,31 @@ def app_callback(payload: GithubInstallCallbackRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.get("/app/callback")
+def app_callback_from_redirect(
+    state: str = Query(default=""),
+    installation_id: int = Query(default=0),
+    setup_action: str = Query(default=""),
+) -> dict:
+    if not state or not installation_id:
+        raise HTTPException(status_code=400, detail="state, installation_id가 필요합니다.")
+
+    try:
+        result = github_integration_service.callback(
+            state=state,
+            installation_id=installation_id,
+            account_login="",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "ok": True,
+        "setup_action": setup_action,
+        "installation": result,
+    }
+
+
 @router.get("/app/installations")
 def list_installations(workspace_id: int, actor_email: str) -> dict:
     try:
@@ -40,6 +65,19 @@ def list_installations(workspace_id: int, actor_email: str) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     return {"installations": data}
+
+
+@router.get("/app/installations/{installation_id}/repos")
+def list_installation_repos(workspace_id: int, actor_email: str, installation_id: int) -> dict:
+    try:
+        data = github_integration_service.list_installation_repos(
+            workspace_id=workspace_id,
+            actor_email=actor_email,
+            installation_id=installation_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return data
 
 
 @router.post("/repos/link")

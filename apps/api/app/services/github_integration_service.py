@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+import json
 import secrets
+import time
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -13,6 +16,74 @@ from app.services.workspace_service import workspace_service
 
 
 class GithubIntegrationService:
+    @staticmethod
+    def _b64url(data: bytes) -> str:
+        return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+    def _load_private_key_pem(self) -> str:
+        raw = settings.github_app_private_key.strip()
+        if not raw:
+            raise ValueError("GITHUB_APP_PRIVATE_KEY 설정이 필요합니다.")
+
+        if "\\n" in raw:
+            raw = raw.replace("\\n", "\n")
+        return raw
+
+    def _create_app_jwt(self) -> str:
+        if not settings.github_app_id:
+            raise ValueError("GITHUB_APP_ID 설정이 필요합니다.")
+
+        private_key_pem = self._load_private_key_pem()
+
+        # Lazy import: only needed for real GitHub App JWT flow.
+        try:
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.primitives.asymmetric import padding
+        except Exception as exc:  # pragma: no cover
+            raise ValueError("cryptography 패키지가 필요합니다. `pip install cryptography` 후 재시도하세요.") from exc
+
+        now = int(time.time())
+        header = {"alg": "RS256", "typ": "JWT"}
+        payload = {
+            "iat": now - 60,
+            "exp": now + 540,
+            "iss": settings.github_app_id,
+        }
+
+        signing_input = f"{self._b64url(json.dumps(header, separators=(',', ':')).encode())}.{self._b64url(json.dumps(payload, separators=(',', ':')).encode())}"
+
+        private_key = serialization.load_pem_private_key(private_key_pem.encode("utf-8"), password=None)
+        signature = private_key.sign(signing_input.encode("utf-8"), padding.PKCS1v15(), hashes.SHA256())
+        return f"{signing_input}.{self._b64url(signature)}"
+
+    def _get_installation_token(self, installation_id: int) -> str:
+        app_jwt = self._create_app_jwt()
+        with httpx.Client(timeout=20.0) as client:
+            resp = client.post(
+                f"{settings.github_api_url}/app/installations/{installation_id}/access_tokens",
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": f"Bearer {app_jwt}",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+                json={"repositories": []},
+            )
+        if resp.status_code >= 400:
+            raise ValueError(f"GitHub installation token 발급 실패: {resp.status_code} {resp.text}")
+        return resp.json().get("token", "")
+
+    def _get_repo_query_token(self, installation_id: int) -> Optional[str]:
+        if settings.github_app_token:
+            return settings.github_app_token
+
+        if settings.github_app_id and settings.github_app_private_key:
+            token = self._get_installation_token(installation_id)
+            if not token:
+                raise ValueError("GitHub installation token을 발급하지 못했습니다.")
+            return token
+
+        return None
+
     def install_url(self, *, workspace_id: int, actor_email: str) -> dict:
         workspace_service.require_permission(
             workspace_id=workspace_id,
@@ -88,6 +159,40 @@ class GithubIntegrationService:
             (workspace_id,),
         )
 
+    def list_installation_repos(self, *, workspace_id: int, actor_email: str, installation_id: int) -> dict:
+        workspace_service.require_permission(
+            workspace_id=workspace_id,
+            actor_email=actor_email,
+            permission="github.link",
+        )
+
+        token = self._get_repo_query_token(installation_id)
+        if not token:
+            return {
+                "mode": "no-github-token",
+                "repositories": [],
+                "note": "GITHUB_APP_TOKEN 또는 GITHUB_APP_ID+GITHUB_APP_PRIVATE_KEY를 설정하면 실제 조회됩니다.",
+            }
+
+        with httpx.Client(timeout=20.0) as client:
+            resp = client.get(
+                f"{settings.github_api_url}/installation/repositories",
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": f"Bearer {token}",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+        if resp.status_code >= 400:
+            raise ValueError(f"GitHub 설치 리포 조회 실패: {resp.status_code} {resp.text}")
+
+        data = resp.json()
+        return {
+            "mode": "real-github-api",
+            "total_count": data.get("total_count", 0),
+            "repositories": data.get("repositories", []),
+        }
+
     def link_repo(
         self,
         *,
@@ -105,14 +210,16 @@ class GithubIntegrationService:
         repo_id = None
         default_branch = None
         is_private = 0
+        mode = "no-github-token"
 
-        if settings.github_app_token:
-            with httpx.Client(timeout=15.0) as client:
+        token = self._get_repo_query_token(installation_id)
+        if token:
+            with httpx.Client(timeout=20.0) as client:
                 resp = client.get(
                     f"{settings.github_api_url}/repos/{repo_full_name}",
                     headers={
                         "Accept": "application/vnd.github+json",
-                        "Authorization": f"Bearer {settings.github_app_token}",
+                        "Authorization": f"Bearer {token}",
                         "X-GitHub-Api-Version": "2022-11-28",
                     },
                 )
@@ -122,6 +229,7 @@ class GithubIntegrationService:
             repo_id = repo.get("id")
             default_branch = repo.get("default_branch")
             is_private = 1 if repo.get("private") else 0
+            mode = "real-github-api"
 
         now = db.now_iso()
         db.execute(
@@ -134,7 +242,13 @@ class GithubIntegrationService:
 
         row = db.fetchone("SELECT * FROM github_repos ORDER BY id DESC LIMIT 1")
         assert row is not None
-        return row
+        return {
+            **row,
+            "mode": mode,
+            "note": None
+            if token
+            else "GITHUB_APP_TOKEN 또는 GITHUB_APP_ID+GITHUB_APP_PRIVATE_KEY를 설정하면 실제 repo 메타데이터를 저장합니다.",
+        }
 
     def list_linked_repos(self, *, workspace_id: int, actor_email: str) -> list[dict]:
         workspace_service.require_permission(

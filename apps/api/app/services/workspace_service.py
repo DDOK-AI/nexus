@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+import httpx
+
 from app.core.rbac import has_permission, normalize_role
 from app.db.database import db
 from app.services.oauth_service import oauth_service
@@ -151,6 +153,117 @@ class WorkspaceService:
             },
         }
 
+    def _execute_simulated(self, *, workspace_id: int, actor_email: str, user_email: str, service: str, action: str, payload: dict, token_type: str) -> dict:
+        result = {
+            "workspace_id": workspace_id,
+            "actor_email": actor_email,
+            "user_email": user_email,
+            "service": service,
+            "action": action,
+            "payload": payload,
+            "mode": "mock-simulated",
+            "token_type": token_type,
+            "message": f"{service}.{action} 실행 준비 완료",
+        }
+
+        if service == "calendar" and action == "create":
+            result["created"] = {
+                "event_id": "evt_demo_001",
+                "title": payload.get("summary") or payload.get("title", "새 일정"),
+                "start": payload.get("start"),
+                "end": payload.get("end"),
+            }
+
+        if service == "drive" and action in {"search", "list"}:
+            result["items"] = [
+                {"id": "file_demo_001", "name": "R&D 주간보고 초안"},
+                {"id": "file_demo_002", "name": "고객 미팅 노트"},
+            ]
+
+        return result
+
+    def _execute_real_google(self, *, access_token: str, service: str, action: str, payload: dict) -> dict:
+        headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
+        with httpx.Client(timeout=20.0) as client:
+            if service == "calendar" and action == "create":
+                body = {
+                    "summary": payload.get("summary") or payload.get("title") or "새 일정",
+                    "description": payload.get("description", ""),
+                    "start": payload.get("start") or {"dateTime": payload.get("start_datetime")},
+                    "end": payload.get("end") or {"dateTime": payload.get("end_datetime")},
+                }
+                if not body.get("start") or not body.get("end"):
+                    raise ValueError("calendar.create는 start/end 정보가 필요합니다.")
+                resp = client.post(
+                    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                    headers={**headers, "Content-Type": "application/json"},
+                    json=body,
+                )
+                if resp.status_code >= 400:
+                    raise ValueError(f"Google Calendar create 실패: {resp.status_code} {resp.text}")
+                data = resp.json()
+                return {
+                    "mode": "real-google-api",
+                    "created": {
+                        "event_id": data.get("id"),
+                        "html_link": data.get("htmlLink"),
+                        "status": data.get("status"),
+                        "summary": data.get("summary"),
+                    },
+                    "raw": data,
+                }
+
+            if service == "calendar" and action in {"list", "search"}:
+                params = {
+                    "maxResults": int(payload.get("max_results", 10)),
+                    "singleEvents": "true",
+                    "orderBy": "startTime",
+                }
+                if payload.get("q"):
+                    params["q"] = payload["q"]
+                if payload.get("time_min"):
+                    params["timeMin"] = payload["time_min"]
+                if payload.get("time_max"):
+                    params["timeMax"] = payload["time_max"]
+
+                resp = client.get(
+                    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                    headers=headers,
+                    params=params,
+                )
+                if resp.status_code >= 400:
+                    raise ValueError(f"Google Calendar list 실패: {resp.status_code} {resp.text}")
+                data = resp.json()
+                return {
+                    "mode": "real-google-api",
+                    "items": data.get("items", []),
+                    "next_page_token": data.get("nextPageToken"),
+                }
+
+            if service == "drive" and action in {"list", "search"}:
+                params = {
+                    "pageSize": int(payload.get("page_size", 20)),
+                    "fields": "files(id,name,mimeType,modifiedTime,webViewLink),nextPageToken",
+                }
+                if payload.get("q"):
+                    params["q"] = payload["q"]
+
+                resp = client.get(
+                    "https://www.googleapis.com/drive/v3/files",
+                    headers=headers,
+                    params=params,
+                )
+                if resp.status_code >= 400:
+                    raise ValueError(f"Google Drive list/search 실패: {resp.status_code} {resp.text}")
+                data = resp.json()
+                return {
+                    "mode": "real-google-api",
+                    "items": data.get("files", []),
+                    "next_page_token": data.get("nextPageToken"),
+                }
+
+        raise ValueError(f"아직 미지원 Google 실행: {service}.{action}")
+
     def execute(
         self,
         *,
@@ -176,33 +289,37 @@ class WorkspaceService:
             raise ValueError(f"지원하지 않는 서비스입니다: {service}")
 
         normalized_action = action.lower().strip()
-        result = {
+        access_token = token_info.get("access_token", "")
+        token_type = token_info.get("token_type", "Bearer")
+
+        if access_token.startswith("mock_"):
+            provider_result = self._execute_simulated(
+                workspace_id=workspace_id,
+                actor_email=actor_email,
+                user_email=resolved_user_email,
+                service=normalized_service,
+                action=normalized_action,
+                payload=payload,
+                token_type=token_type,
+            )
+        else:
+            provider_result = self._execute_real_google(
+                access_token=access_token,
+                service=normalized_service,
+                action=normalized_action,
+                payload=payload,
+            )
+
+        return {
             "workspace_id": workspace_id,
             "actor_email": actor_email,
             "user_email": resolved_user_email,
             "service": normalized_service,
             "action": normalized_action,
             "payload": payload,
-            "mode": "api-contract-ready",
-            "token_type": token_info.get("token_type"),
-            "message": f"{normalized_service}.{normalized_action} 실행 준비 완료",
+            "token_type": token_type,
+            "result": provider_result,
         }
-
-        if normalized_service == "calendar" and normalized_action == "create":
-            result["created"] = {
-                "event_id": "evt_demo_001",
-                "title": payload.get("title", "새 일정"),
-                "start": payload.get("start"),
-                "end": payload.get("end"),
-            }
-
-        if normalized_service == "drive" and normalized_action in {"search", "list"}:
-            result["items"] = [
-                {"id": "file_demo_001", "name": "R&D 주간보고 초안"},
-                {"id": "file_demo_002", "name": "고객 미팅 노트"},
-            ]
-
-        return result
 
 
 workspace_service = WorkspaceService()
