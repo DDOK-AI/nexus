@@ -46,3 +46,13 @@
 
 ### Changed
 - README에 운영 준비 절차(`cp .env.production.template .env` + env 점검) 반영
+
+## 2026-02-26 — 운영 배포 경로(250 + Traefik) 연결
+
+### Added
+- 250 서버 user systemd 서비스 `gws-deepagent-workspace.service`로 API 상시 실행(포트 `18090`)
+- Traefik 동적 라우트 `nexus.ddok.ai -> http://192.168.50.250:18090`
+
+### Validation
+- 내부 헬스체크: `http://127.0.0.1:18090/health` → `{\"ok\":true}`
+- 외부 도메인 헬스체크: `https://nexus.ddok.ai/health` → `200`, `{\"ok\":true}`

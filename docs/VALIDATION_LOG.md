@@ -53,3 +53,15 @@
   - `SERVER250_ENV_CHECK_FAIL_PATH_OK`
   - `SERVER250_ENV_CHECK_PASS_PATH_OK`
   - `SERVER250_TEMPLATE_SYNC_OK`
+
+## 2026-02-26 Server (192.168.50.250) + Traefik (192.168.50.253) — nexus.ddok.ai 연결
+- 250 서버 조치:
+  - `~/.config/systemd/user/gws-deepagent-workspace.service` 생성/enable
+  - uvicorn 상시 실행: `0.0.0.0:18090`
+- Traefik 조치:
+  - `~/traefik/dynamic/nexus-ddok-ai.yaml` 추가
+  - router: `Host(nexus.ddok.ai)` → service `http://192.168.50.250:18090`
+- 검증:
+  - 250 로컬: `curl http://127.0.0.1:18090/health` → `{"ok":true}`
+  - Traefik 노드(253)에서 백엔드 연결: `curl http://192.168.50.250:18090/health` → `{"ok":true}`
+  - 외부 도메인: `curl https://nexus.ddok.ai/health` → HTTP `200` + `{"ok":true}`
